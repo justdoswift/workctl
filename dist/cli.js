@@ -13,7 +13,7 @@ const program = new Command();
 program
     .name("kslog")
     .description("KubeSphere 日志下载 CLI")
-    .version("0.3.1");
+    .version("0.3.2");
 addConnectionOptions(program);
 addDownloadOptions(program);
 program.action(async (options) => {
@@ -141,7 +141,7 @@ async function chooseKubeTarget(client, options) {
     const target = options.service
         ? await client.resolveTarget(namespace, options.service)
         : await chooseTarget(targets);
-    const pods = await client.listPods(namespace, target.selector);
+    const pods = await client.listPodsForTarget(target);
     if (pods.length === 0) {
         throw new Error(`${target.kind} ${target.name} 没有匹配的 Pod`);
     }

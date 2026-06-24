@@ -118,6 +118,13 @@ export class KubeSphereClient {
             .filter((pod) => Boolean(pod))
             .sort((left, right) => left.name.localeCompare(right.name));
     }
+    async listPodsForTarget(target) {
+        const pods = await this.listPods(target.namespace, target.selector);
+        if (pods.length > 0 || target.kind !== "Deployment") {
+            return pods;
+        }
+        return this.listPodsForDeployment(target.namespace, target.name);
+    }
     async downloadLog(options) {
         const query = new URLSearchParams({
             container: options.container
@@ -235,6 +242,18 @@ export class KubeSphereClient {
             nodeName: pod.spec?.nodeName
         };
     }
+    async listPodsForDeployment(namespace, deploymentName) {
+        const [replicaSets, pods] = await Promise.all([
+            this.fetchJson(`/apis/apps/v1/namespaces/${encodeURIComponent(namespace)}/replicasets?limit=1000`),
+            this.fetchJson(`/api/v1/namespaces/${encodeURIComponent(namespace)}/pods?limit=1000`)
+        ]);
+        const replicaSetNames = deploymentReplicaSetNames(replicaSets.items ?? [], deploymentName);
+        return (pods.items ?? [])
+            .filter((pod) => podBelongsToDeployment(pod, deploymentName, replicaSetNames))
+            .map((pod) => this.toPodSummary(namespace, pod))
+            .filter((pod) => Boolean(pod))
+            .sort((left, right) => left.name.localeCompare(right.name));
+    }
     async fetchJson(apiPath) {
         const response = await this.request(apiPath, {
             headers: {
@@ -318,5 +337,18 @@ export class KubeSphereClient {
                 : [];
         mergeCookieJar(this.cookieJar, parseSetCookieHeaders(setCookieHeaders));
     }
+}
+export function deploymentReplicaSetNames(replicaSets, deploymentName) {
+    return new Set(replicaSets
+        .map((replicaSet) => replicaSet.metadata)
+        .filter((metadata) => Boolean(metadata?.name))
+        .filter((metadata) => (metadata.ownerReferences ?? []).some((owner) => owner.kind === "Deployment" && owner.name === deploymentName))
+        .map((metadata) => metadata.name));
+}
+export function podBelongsToDeployment(pod, deploymentName, replicaSetNames) {
+    const podName = pod.metadata?.name ?? "";
+    const owners = pod.metadata?.ownerReferences ?? [];
+    const ownedByReplicaSet = owners.some((owner) => owner.kind === "ReplicaSet" && Boolean(owner.name) && replicaSetNames.has(owner.name));
+    return ownedByReplicaSet || podName.startsWith(`${deploymentName}-`);
 }
 //# sourceMappingURL=kubesphere-client.js.map

@@ -48,6 +48,10 @@ interface KubeObjectMeta {
   name?: string;
   namespace?: string;
   labels?: Record<string, string>;
+  ownerReferences?: Array<{
+    kind?: string;
+    name?: string;
+  }>;
 }
 
 interface KubeService {
@@ -80,6 +84,10 @@ interface KubePod {
       restartCount?: number;
     }>;
   };
+}
+
+interface KubeReplicaSet {
+  metadata?: KubeObjectMeta;
 }
 
 export class KubeSphereClient {
@@ -229,6 +237,16 @@ export class KubeSphereClient {
       .sort((left, right) => left.name.localeCompare(right.name));
   }
 
+  async listPodsForTarget(target: KubeTarget): Promise<PodSummary[]> {
+    const pods = await this.listPods(target.namespace, target.selector);
+
+    if (pods.length > 0 || target.kind !== "Deployment") {
+      return pods;
+    }
+
+    return this.listPodsForDeployment(target.namespace, target.name);
+  }
+
   async downloadLog(options: DownloadLogOptions): Promise<void> {
     const query = new URLSearchParams({
       container: options.container
@@ -367,6 +385,22 @@ export class KubeSphereClient {
     };
   }
 
+  private async listPodsForDeployment(namespace: string, deploymentName: string): Promise<PodSummary[]> {
+    const [replicaSets, pods] = await Promise.all([
+      this.fetchJson<KubeList<KubeReplicaSet>>(
+        `/apis/apps/v1/namespaces/${encodeURIComponent(namespace)}/replicasets?limit=1000`
+      ),
+      this.fetchJson<KubeList<KubePod>>(`/api/v1/namespaces/${encodeURIComponent(namespace)}/pods?limit=1000`)
+    ]);
+    const replicaSetNames = deploymentReplicaSetNames(replicaSets.items ?? [], deploymentName);
+
+    return (pods.items ?? [])
+      .filter((pod) => podBelongsToDeployment(pod, deploymentName, replicaSetNames))
+      .map((pod) => this.toPodSummary(namespace, pod))
+      .filter((pod): pod is PodSummary => Boolean(pod))
+      .sort((left, right) => left.name.localeCompare(right.name));
+  }
+
   private async fetchJson<T>(apiPath: string): Promise<T> {
     const response = await this.request(apiPath, {
       headers: {
@@ -472,4 +506,35 @@ export class KubeSphereClient {
 
     mergeCookieJar(this.cookieJar, parseSetCookieHeaders(setCookieHeaders));
   }
+}
+
+export function deploymentReplicaSetNames(
+  replicaSets: Array<{ metadata?: KubeObjectMeta }>,
+  deploymentName: string
+): Set<string> {
+  return new Set(
+    replicaSets
+      .map((replicaSet) => replicaSet.metadata)
+      .filter((metadata): metadata is KubeObjectMeta => Boolean(metadata?.name))
+      .filter((metadata) =>
+        (metadata.ownerReferences ?? []).some(
+          (owner) => owner.kind === "Deployment" && owner.name === deploymentName
+        )
+      )
+      .map((metadata) => metadata.name as string)
+  );
+}
+
+export function podBelongsToDeployment(
+  pod: { metadata?: KubeObjectMeta },
+  deploymentName: string,
+  replicaSetNames: Set<string>
+): boolean {
+  const podName = pod.metadata?.name ?? "";
+  const owners = pod.metadata?.ownerReferences ?? [];
+  const ownedByReplicaSet = owners.some(
+    (owner) => owner.kind === "ReplicaSet" && Boolean(owner.name) && replicaSetNames.has(owner.name as string)
+  );
+
+  return ownedByReplicaSet || podName.startsWith(`${deploymentName}-`);
 }
