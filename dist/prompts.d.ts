@@ -7,7 +7,8 @@ export interface ConnectionAnswers {
     password: string;
     insecure?: boolean;
 }
-export type WorkctlFeature = "logs" | "leqi" | "redis";
+export type WorkctlFeature = "logs" | "leqi" | "redis" | "exit";
+export type RedisActionChoice = RedisAction | "back";
 export type ProfileChoice = {
     kind: "saved";
     profile: SavedProfile;
@@ -44,7 +45,7 @@ export declare function promptRedisConnection(options: {
     db?: number;
     password?: string;
 }): Promise<RedisConnection>;
-export declare function chooseRedisAction(provided?: RedisAction): Promise<RedisAction>;
+export declare function chooseRedisAction(provided?: RedisAction): Promise<RedisActionChoice>;
 export declare function promptRedisOperation(options: {
     action: RedisAction;
     key?: string;

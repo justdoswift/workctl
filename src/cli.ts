@@ -170,18 +170,27 @@ program.action(async (options: DownloadOptions) => {
     return;
   }
 
-  const feature = await chooseWorkctlFeature();
-  if (feature === "leqi") {
-    await runLeqiFlow(options);
-    return;
-  }
+  while (true) {
+    const feature = await chooseWorkctlFeature();
+    if (feature === "exit") {
+      return;
+    }
 
-  if (feature === "redis") {
-    await runRedisFlow(options);
-    return;
-  }
+    if (feature === "leqi") {
+      await runLeqiFlow(options);
+      console.log("");
+      continue;
+    }
 
-  await runDownloadFlow(options);
+    if (feature === "redis") {
+      await runRedisFlow(options);
+      console.log("");
+      continue;
+    }
+
+    await runDownloadFlow(options);
+    console.log("");
+  }
 });
 
 const loginCheck = program
@@ -444,13 +453,53 @@ async function runRedisFlow(options: RedisOptions): Promise<void> {
     console.log(`已自动选择 Redis 工作负载：${formatRedisTargetChoice(target)}`);
   }
   const redisConnection = await resolveRedisConnection(client, options, profileName);
-  const action = await chooseRedisAction(options.redisAction);
-  const operation = await promptRedisOperation({
-    action,
-    key: options.key,
-    pattern: options.pattern,
-    command: options.redisCommand
-  });
+  console.log(`执行位置：${namespace} / ${target.name} / ${pod.name} / ${container}`);
+  console.log(`Redis：${describeRedisConnection(redisConnection)}`);
+
+  const oneShot = hasRedisOperationHint(options);
+  do {
+    const action = await chooseRedisAction(options.redisAction);
+    if (action === "back") {
+      return;
+    }
+
+    const operation = await promptRedisOperation({
+      action,
+      key: oneShot ? options.key : undefined,
+      pattern: oneShot ? options.pattern : undefined,
+      command: oneShot ? options.redisCommand : undefined
+    });
+
+    await runRedisOperation({
+      client,
+      namespace,
+      target,
+      pod,
+      container,
+      redisConnection,
+      operation,
+      profileName
+    });
+
+    if (oneShot) {
+      return;
+    }
+
+    console.log("");
+  } while (true);
+}
+
+async function runRedisOperation(options: {
+  client: KubeSphereClient;
+  namespace: string;
+  target: KubeTarget;
+  pod: PodSummary;
+  container: string;
+  redisConnection: RedisConnection;
+  operation: RedisOperation;
+  profileName?: string;
+}): Promise<void> {
+  const { client, namespace, target, pod, container, redisConnection, operation, profileName } = options;
 
   if (operation.action === "custom" && isDangerousRedisCommand(operation.command)) {
     const confirmed = await confirm({
@@ -463,10 +512,7 @@ async function runRedisFlow(options: RedisOptions): Promise<void> {
     }
   }
 
-  console.log(`执行位置：${namespace} / ${target.name} / ${pod.name} / ${container}`);
-  console.log(`Redis：${describeRedisConnection(redisConnection)}`);
   console.log(`命令：${describeRedisOperation(operation)}`);
-
   let result = await executeRedisCommand(client, namespace, pod.name, container, redisConnection, operation);
   let output = parseRedisExecResult(result, redisConnection, target, namespace, container);
 
@@ -730,6 +776,10 @@ async function discoverRedisTargets(client: KubeSphereClient, namespace?: string
 
 function hasExplicitRedisTargetHint(options: RedisOptions): boolean {
   return Boolean(options.workload ?? options.service ?? options.pod ?? options.container);
+}
+
+function hasRedisOperationHint(options: RedisOptions): boolean {
+  return Boolean(options.redisAction ?? options.key ?? options.pattern ?? options.redisCommand);
 }
 
 function buildRedisConnectionHint(stderr: string, namespace: string): string | undefined {

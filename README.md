@@ -98,6 +98,10 @@ workctl
 
 - K8s 日志
 - 乐企接口
+- Redis 工具
+- 退出
+
+裸 `workctl` 的交互模式会在每个功能执行完成后回到功能选择菜单；选择 `退出` 才会结束程序。子命令直达模式仍然执行一次后退出，方便脚本使用。
 
 进入 K8s 日志时，会选择已保存环境，或者选择“新增环境”。新增环境需要填写 `name/url/username/password`，登录成功后会自动保存并设为默认环境。
 
@@ -209,6 +213,8 @@ Redis 工具会登录 KubeSphere，自动查找可见 namespace 中的 Redis 工
 第一版不会创建临时工具 Pod；如果 Redis 容器没有 `redis-cli`，会提示你切换到带工具的 Pod/容器。
 
 支持的操作包括 `PING`、`INFO`、`GET key`、`SCAN pattern` 和自定义命令。自定义命令如果包含常见写操作（如 `DEL`、`SET`、`HSET`、`EXPIRE`、`FLUSHDB`）会要求二次确认。
+
+交互模式下每次 Redis 命令执行完成后会回到 `选择 Redis 操作` 菜单，方便连续查询；选择 `返回上一级` 可离开 Redis 工具。命令行直达模式，例如传入 `--redis-action`，仍然执行一次后退出，方便脚本使用。
 
 也可以直达：
 

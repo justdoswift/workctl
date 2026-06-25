@@ -180,7 +180,7 @@ export function formatRedisServiceChoice(service) {
 export function buildRedisArgs(connection, operation) {
     const baseArgs = ["--raw"];
     if (connection.password) {
-        baseArgs.push("-a", connection.password);
+        baseArgs.push("--no-auth-warning", "-a", connection.password);
     }
     if (connection.host) {
         baseArgs.push("-h", connection.host);

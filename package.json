@@ -1,6 +1,6 @@
 {
   "name": "workctl",
-  "version": "0.5.6",
+  "version": "0.5.7",
   "description": "Daily work toolkit CLI",
   "type": "module",
   "repository": {

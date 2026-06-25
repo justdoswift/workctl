@@ -83,7 +83,8 @@ export async function chooseWorkctlFeature() {
         choices: [
             { name: "K8s 日志", value: "logs" },
             { name: "乐企接口", value: "leqi" },
-            { name: "Redis 工具", value: "redis" }
+            { name: "Redis 工具", value: "redis" },
+            { name: "退出", value: "exit" }
         ]
     });
 }
@@ -319,7 +320,8 @@ export async function chooseRedisAction(provided) {
             { name: "INFO", value: "info" },
             { name: "GET key", value: "get" },
             { name: "SCAN pattern", value: "scan" },
-            { name: "执行自定义命令", value: "custom" }
+            { name: "执行自定义命令", value: "custom" },
+            { name: "返回上一级", value: "back" }
         ],
         default: "ping"
     });

@@ -227,7 +227,7 @@ export function formatRedisServiceChoice(service: KubeServiceSummary): string {
 export function buildRedisArgs(connection: RedisConnection, operation: RedisOperation): string[] {
   const baseArgs = ["--raw"];
   if (connection.password) {
-    baseArgs.push("-a", connection.password);
+    baseArgs.push("--no-auth-warning", "-a", connection.password);
   }
   if (connection.host) {
     baseArgs.push("-h", connection.host);

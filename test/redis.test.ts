@@ -138,6 +138,7 @@ describe("redis", () => {
     expect(command[0]).toBe("sh");
     expect(command[1]).toBe("-lc");
     expect(command[2]).toContain(REDIS_CLI_MISSING_MARKER);
+    expect(command[2]).toContain("'--no-auth-warning'");
     expect(command[2]).toContain("'-a' 'p@ss'\\''word'");
     expect(command[2]).toContain("'-h' 'redis'\\''prod'");
     expect(command[2]).toContain("'a'\\''b'");

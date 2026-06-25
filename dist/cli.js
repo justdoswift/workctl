@@ -27,16 +27,24 @@ program.action(async (options) => {
         await runDownloadFlow(options);
         return;
     }
-    const feature = await chooseWorkctlFeature();
-    if (feature === "leqi") {
-        await runLeqiFlow(options);
-        return;
+    while (true) {
+        const feature = await chooseWorkctlFeature();
+        if (feature === "exit") {
+            return;
+        }
+        if (feature === "leqi") {
+            await runLeqiFlow(options);
+            console.log("");
+            continue;
+        }
+        if (feature === "redis") {
+            await runRedisFlow(options);
+            console.log("");
+            continue;
+        }
+        await runDownloadFlow(options);
+        console.log("");
     }
-    if (feature === "redis") {
-        await runRedisFlow(options);
-        return;
-    }
-    await runDownloadFlow(options);
 });
 const loginCheck = program
     .command("login-check")
@@ -269,13 +277,38 @@ async function runRedisFlow(options) {
         console.log(`已自动选择 Redis 工作负载：${formatRedisTargetChoice(target)}`);
     }
     const redisConnection = await resolveRedisConnection(client, options, profileName);
-    const action = await chooseRedisAction(options.redisAction);
-    const operation = await promptRedisOperation({
-        action,
-        key: options.key,
-        pattern: options.pattern,
-        command: options.redisCommand
-    });
+    console.log(`执行位置：${namespace} / ${target.name} / ${pod.name} / ${container}`);
+    console.log(`Redis：${describeRedisConnection(redisConnection)}`);
+    const oneShot = hasRedisOperationHint(options);
+    do {
+        const action = await chooseRedisAction(options.redisAction);
+        if (action === "back") {
+            return;
+        }
+        const operation = await promptRedisOperation({
+            action,
+            key: oneShot ? options.key : undefined,
+            pattern: oneShot ? options.pattern : undefined,
+            command: oneShot ? options.redisCommand : undefined
+        });
+        await runRedisOperation({
+            client,
+            namespace,
+            target,
+            pod,
+            container,
+            redisConnection,
+            operation,
+            profileName
+        });
+        if (oneShot) {
+            return;
+        }
+        console.log("");
+    } while (true);
+}
+async function runRedisOperation(options) {
+    const { client, namespace, target, pod, container, redisConnection, operation, profileName } = options;
     if (operation.action === "custom" && isDangerousRedisCommand(operation.command)) {
         const confirmed = await confirm({
             message: `检测到可能修改 Redis 数据的命令：${operation.command}，确认执行吗？`,
@@ -286,8 +319,6 @@ async function runRedisFlow(options) {
             return;
         }
     }
-    console.log(`执行位置：${namespace} / ${target.name} / ${pod.name} / ${container}`);
-    console.log(`Redis：${describeRedisConnection(redisConnection)}`);
     console.log(`命令：${describeRedisOperation(operation)}`);
     let result = await executeRedisCommand(client, namespace, pod.name, container, redisConnection, operation);
     let output = parseRedisExecResult(result, redisConnection, target, namespace, container);
@@ -486,6 +517,9 @@ async function discoverRedisTargets(client, namespace) {
 }
 function hasExplicitRedisTargetHint(options) {
     return Boolean(options.workload ?? options.service ?? options.pod ?? options.container);
+}
+function hasRedisOperationHint(options) {
+    return Boolean(options.redisAction ?? options.key ?? options.pattern ?? options.redisCommand);
 }
 function buildRedisConnectionHint(stderr, namespace) {
     if (!/Could not resolve hostname|Name or service not known|Temporary failure in name resolution/i.test(stderr)) {

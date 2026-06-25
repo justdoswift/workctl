@@ -30,7 +30,8 @@ export interface ConnectionAnswers {
   insecure?: boolean;
 }
 
-export type WorkctlFeature = "logs" | "leqi" | "redis";
+export type WorkctlFeature = "logs" | "leqi" | "redis" | "exit";
+export type RedisActionChoice = RedisAction | "back";
 
 export type ProfileChoice =
   | {
@@ -137,7 +138,8 @@ export async function chooseWorkctlFeature(): Promise<WorkctlFeature> {
     choices: [
       { name: "K8s 日志", value: "logs" },
       { name: "乐企接口", value: "leqi" },
-      { name: "Redis 工具", value: "redis" }
+      { name: "Redis 工具", value: "redis" },
+      { name: "退出", value: "exit" }
     ]
   });
 }
@@ -417,7 +419,7 @@ export async function promptRedisConnection(options: {
   };
 }
 
-export async function chooseRedisAction(provided?: RedisAction): Promise<RedisAction> {
+export async function chooseRedisAction(provided?: RedisAction): Promise<RedisActionChoice> {
   if (provided) {
     return provided;
   }
@@ -429,7 +431,8 @@ export async function chooseRedisAction(provided?: RedisAction): Promise<RedisAc
       { name: "INFO", value: "info" },
       { name: "GET key", value: "get" },
       { name: "SCAN pattern", value: "scan" },
-      { name: "执行自定义命令", value: "custom" }
+      { name: "执行自定义命令", value: "custom" },
+      { name: "返回上一级", value: "back" }
     ],
     default: "ping"
   });
