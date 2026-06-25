@@ -1,8 +1,4 @@
-import type { LeqiApiInfo } from "./types.js";
-
-// Snapshot from lxzsdb.tax_leqi_api_info where invalidated = 0.
-// Regenerate this file when the upstream Leqi interface catalog changes.
-export const LEQI_API_SNAPSHOT = [
+[
   {
     "apiIdentity": "100000001",
     "apiName": "全电发票上传接口",
@@ -1313,4 +1309,4 @@ export const LEQI_API_SNAPSHOT = [
     "abilityCode": "203105",
     "sceneCode": "203105"
   }
-] as const satisfies readonly LeqiApiInfo[];
+]

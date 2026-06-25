@@ -1,4 +1,5 @@
 node_modules/
+target/
 
 # Local credentials, downloaded logs, and smoke-test artifacts.
 work/
