@@ -158,6 +158,7 @@ const packageInfo = JSON.parse(readFileSync(new URL("../package.json", import.me
 const DEFAULT_REDIS_SERVICE_HOST = "redis.tax-component";
 const MIDDLE_DB_MOCK_URL = "https://silken-cliff-6z59.here.now/";
 const LEQI_SM4_URL = "https://snowy-tangle-qfja.here.now/";
+const GET_HASH_CODE_URL = "https://deep-garnet-bma5.here.now/";
 
 program
   .name("bosscli")
@@ -194,6 +195,13 @@ program.action(async (options: DownloadOptions) => {
     if (feature === "leqi-sm4") {
       await openUrl(LEQI_SM4_URL);
       console.log(`已打开乐企 SM4：${LEQI_SM4_URL}`);
+      console.log("");
+      continue;
+    }
+
+    if (feature === "get-hash-code") {
+      await openUrl(GET_HASH_CODE_URL);
+      console.log(`已打开 Get Hash Code：${GET_HASH_CODE_URL}`);
       console.log("");
       continue;
     }

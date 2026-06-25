@@ -7,7 +7,7 @@ export interface ConnectionAnswers {
     password: string;
     insecure?: boolean;
 }
-export type BosscliFeature = "logs" | "leqi" | "leqi-sm4" | "redis" | "middle-db-mock" | "exit";
+export type BosscliFeature = "logs" | "leqi" | "leqi-sm4" | "get-hash-code" | "redis" | "middle-db-mock" | "exit";
 export type RedisActionChoice = RedisAction | "switch-db" | "back";
 export type ProfileChoice = {
     kind: "saved";
