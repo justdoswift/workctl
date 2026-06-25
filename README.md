@@ -98,6 +98,7 @@ bosscli
 
 - k8s
 - 乐企
+- 乐企 SM4
 - Redis
 - 中间库 mock
 - 退出
@@ -105,6 +106,8 @@ bosscli
 裸 `bosscli` 的交互模式会在每个功能执行完成后回到功能选择菜单；选择 `退出` 才会结束程序。子命令直达模式仍然执行一次后退出，方便脚本使用。
 
 选择 `中间库 mock` 会直接用系统默认浏览器打开 [https://silken-cliff-6z59.here.now/](https://silken-cliff-6z59.here.now/)。
+
+选择 `乐企 SM4` 会直接用系统默认浏览器打开 [https://snowy-tangle-qfja.here.now/](https://snowy-tangle-qfja.here.now/)。
 
 进入 `k8s` 时，会选择已保存环境，或者选择“新增环境”。新增环境需要填写 `name/url/username/password`，登录成功后会自动保存并设为默认环境。
 

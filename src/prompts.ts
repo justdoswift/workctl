@@ -30,7 +30,7 @@ export interface ConnectionAnswers {
   insecure?: boolean;
 }
 
-export type BosscliFeature = "logs" | "leqi" | "redis" | "middle-db-mock" | "exit";
+export type BosscliFeature = "logs" | "leqi" | "leqi-sm4" | "redis" | "middle-db-mock" | "exit";
 export type RedisActionChoice = RedisAction | "switch-db" | "back";
 
 export type ProfileChoice =
@@ -138,6 +138,7 @@ export async function chooseBosscliFeature(): Promise<BosscliFeature> {
     choices: [
       { name: "k8s", value: "logs" },
       { name: "乐企", value: "leqi" },
+      { name: "乐企 SM4", value: "leqi-sm4" },
       { name: "Redis", value: "redis" },
       { name: "中间库 mock", value: "middle-db-mock" },
       { name: "退出", value: "exit" }
