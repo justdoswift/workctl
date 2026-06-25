@@ -47,6 +47,7 @@ export type BosscliFeature =
   | "get-hash-code"
   | "redis"
   | "middle-db-mock"
+  | "file-share"
   | "exit";
 export type RedisActionChoice = RedisAction | "switch-db" | "back";
 export type LexiangNextAction = "continue" | "switch-catalog" | "switch-profile" | "home" | "exit";
@@ -171,6 +172,7 @@ export async function chooseBosscliFeature(defaultFeature?: BosscliFeature): Pro
       { name: "Get Hash Code", value: "get-hash-code" },
       { name: "Redis", value: "redis" },
       { name: "中间库 mock", value: "middle-db-mock" },
+      { name: "文件共享", value: "file-share" },
       { name: "退出", value: "exit" }
     ]
   });

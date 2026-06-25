@@ -8,7 +8,7 @@ export interface ConnectionAnswers {
     password: string;
     insecure?: boolean;
 }
-export type BosscliFeature = "logs" | "leqi" | "lexiang" | "leqi-sm4" | "get-hash-code" | "redis" | "middle-db-mock" | "exit";
+export type BosscliFeature = "logs" | "leqi" | "lexiang" | "leqi-sm4" | "get-hash-code" | "redis" | "middle-db-mock" | "file-share" | "exit";
 export type RedisActionChoice = RedisAction | "switch-db" | "back";
 export type LexiangNextAction = "continue" | "switch-catalog" | "switch-profile" | "home" | "exit";
 export type ProfileChoice = {

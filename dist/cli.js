@@ -22,6 +22,7 @@ const DEFAULT_REDIS_SERVICE_HOST = "redis.tax-component";
 const MIDDLE_DB_MOCK_URL = "https://silken-cliff-6z59.here.now/";
 const LEQI_SM4_URL = "https://snowy-tangle-qfja.here.now/";
 const GET_HASH_CODE_URL = "https://deep-garnet-bma5.here.now/";
+const FILE_SHARE_URL = "https://wormhole.app/";
 program
     .name("bosscli")
     .description("日常工作工具集 CLI")
@@ -73,6 +74,12 @@ program.action(async (options) => {
         if (feature === "middle-db-mock") {
             await openUrl(MIDDLE_DB_MOCK_URL);
             console.log(`已打开中间库 mock：${MIDDLE_DB_MOCK_URL}`);
+            console.log("");
+            continue;
+        }
+        if (feature === "file-share") {
+            await openUrl(FILE_SHARE_URL);
+            console.log(`已打开文件共享：${FILE_SHARE_URL}`);
             console.log("");
             continue;
         }

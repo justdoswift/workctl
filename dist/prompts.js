@@ -90,6 +90,7 @@ export async function chooseBosscliFeature(defaultFeature) {
             { name: "Get Hash Code", value: "get-hash-code" },
             { name: "Redis", value: "redis" },
             { name: "中间库 mock", value: "middle-db-mock" },
+            { name: "文件共享", value: "file-share" },
             { name: "退出", value: "exit" }
         ]
     });
