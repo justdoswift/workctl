@@ -1,8 +1,10 @@
-import type { KubeTarget } from "./types.js";
+import type { KubeServiceSummary, KubeTarget } from "./types.js";
 export declare const REDIS_CLI_MISSING_MARKER = "__WORKCTL_REDIS_CLI_MISSING__";
 export declare const DEFAULT_REDIS_NAMESPACE = "kubesphere-system";
 export declare const DEFAULT_REDIS_WORKLOAD = "redis";
 export declare const DEFAULT_REDIS_HOST = "127.0.0.1";
+export declare const DEFAULT_BUSINESS_REDIS_NAMESPACE = "tax-component";
+export declare const DEFAULT_BUSINESS_REDIS_SERVICE = "redis";
 export type RedisAction = "ping" | "info" | "get" | "scan" | "custom";
 export interface RedisConnection {
     host?: string;
@@ -32,6 +34,11 @@ export declare function autoRedisTarget(targets: KubeTarget[]): KubeTarget | und
 export declare function formatRedisTargetChoice(target: KubeTarget): string;
 export declare function defaultRedisHostForTarget(target: KubeTarget): string | undefined;
 export declare function redisServiceHost(namespace: string, workload?: string): string;
+export declare function redisServiceDnsName(service: KubeServiceSummary): string;
+export declare function preferredRedisServicePort(service: KubeServiceSummary): number | undefined;
+export declare function redisServicePriority(service: KubeServiceSummary): number;
+export declare function sortRedisServices(services: KubeServiceSummary[]): KubeServiceSummary[];
+export declare function formatRedisServiceChoice(service: KubeServiceSummary): string;
 export declare function buildRedisArgs(connection: RedisConnection, operation: RedisOperation): string[];
 export declare function describeRedisConnection(connection: RedisConnection): string;
 export declare function parseRedisCommand(command: string): string[];

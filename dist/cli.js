@@ -2,19 +2,20 @@
 import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { confirm, input, number, password as promptPassword } from "@inquirer/prompts";
+import { confirm, input, number, password as promptPassword, select } from "@inquirer/prompts";
 import { Command, Option } from "commander";
 import { KubeSphereClient } from "./kubesphere-client.js";
 import { buildOutputPath, chooseLeqiAction, chooseLeqiApi, chooseContainer, chooseDateSelection, chooseHistoryFiles, chooseLogRange, chooseLogSource, chooseNamespace, choosePod, chooseRedisAction, chooseRedisTargetCandidate, chooseSavedProfile, chooseTarget, chooseWorkctlFeature, promptLeqiReqDto, promptConnection, promptNewProfileName, promptRedisOperation } from "./prompts.js";
-import { getProfile, readProfiles, removeProfile, setDefaultProfile, setProfileRedisPassword, upsertProfile } from "./profile-store.js";
+import { getProfile, readProfiles, removeProfile, setDefaultProfile, setProfileRedisConfig, setProfileRedisPassword, upsertProfile } from "./profile-store.js";
 import { exportHistoryLogs, filterHistoryFilesByService, listHistoryFiles, statHistoryFiles } from "./history-logs.js";
 import { buildLogFileName, defaultOutputDir, formatBytes, normalizeBaseUrl } from "./utils.js";
 import { ProgressBar } from "./progress.js";
 import { copyToClipboard } from "./clipboard.js";
 import { buildLeqiCurl, buildLeqiExecCurlCommand, buildLeqiInvokePayload, buildLeqiReqDtoDefault, DEFAULT_LEQI_ENDPOINT, DEFAULT_LEQI_RUNNER_WORKLOAD, DEFAULT_LEQI_TAX_PAYER_NO, findLeqiReqDtoTemplate, formatLeqiReqDtoTemplateSummary, formatLeqiReqDtoTemplateSource, listLeqiApis } from "./leqi.js";
-import { REDIS_CLI_MISSING_MARKER, buildRedisCliCommand, describeRedisConnection, describeRedisOperation, autoRedisTarget, formatRedisTargetChoice, isDangerousRedisCommand, isRedisAuthFailureOutput, isRedisTarget, redactRedisPassword, redisServiceHost, sortRedisTargets } from "./redis.js";
+import { REDIS_CLI_MISSING_MARKER, buildRedisCliCommand, describeRedisConnection, describeRedisOperation, autoRedisTarget, formatRedisTargetChoice, isDangerousRedisCommand, isRedisAuthFailureOutput, isRedisTarget, formatRedisServiceChoice, preferredRedisServicePort, redisServiceDnsName, redactRedisPassword, redisServiceHost, sortRedisServices, sortRedisTargets } from "./redis.js";
 const program = new Command();
 const packageInfo = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+const DEFAULT_REDIS_SERVICE_HOST = "redis.tax-component";
 program
     .name("workctl")
     .description("日常工作工具集 CLI")
@@ -267,13 +268,7 @@ async function runRedisFlow(options) {
     if (autoDiscovered) {
         console.log(`已自动选择 Redis 工作负载：${formatRedisTargetChoice(target)}`);
     }
-    const redisPassword = await resolveRedisPassword(options, profileName);
-    const redisConnection = {
-        host: options.redisHost,
-        port: options.redisPort,
-        db: options.redisDb,
-        password: redisPassword
-    };
+    const redisConnection = await resolveRedisConnection(client, options, profileName);
     const action = await chooseRedisAction(options.redisAction);
     const operation = await promptRedisOperation({
         action,
@@ -339,36 +334,110 @@ function parseRedisExecResult(result, redisConnection, target, namespace, contai
     }
     return { stdout, stderr, error };
 }
-async function resolveRedisPassword(options, profileName) {
-    if (options.redisPassword) {
-        if (profileName) {
-            await setProfileRedisPassword(profileName, options.redisPassword);
-            console.log(`已保存 Redis 密码到环境：${profileName}`);
-        }
-        return options.redisPassword;
+async function resolveRedisConnection(client, options, profileName) {
+    const profile = profileName ? await getProfile(profileName) : undefined;
+    const hasOverrides = options.redisHost !== undefined ||
+        options.redisPort !== undefined ||
+        options.redisDb !== undefined ||
+        options.redisPassword !== undefined;
+    const selectedServiceEndpoint = options.redisHost || profile?.redisHost ? undefined : await chooseRedisServiceEndpoint(client);
+    const host = options.redisHost ?? profile?.redisHost ?? selectedServiceEndpoint?.host ?? (await promptRedisHost());
+    const port = options.redisPort ??
+        profile?.redisPort ??
+        selectedServiceEndpoint?.port ??
+        (await number({
+            message: "Redis port",
+            default: 6379,
+            min: 1,
+            required: true
+        }));
+    const db = options.redisDb ??
+        profile?.redisDb ??
+        (await number({
+            message: "Redis db",
+            default: 0,
+            min: 0,
+            required: true
+        }));
+    const password = options.redisPassword ?? profile?.redisPassword ?? (await promptRedisPassword("Redis 密码"));
+    const connection = {
+        host: host.trim(),
+        port,
+        db,
+        password
+    };
+    if (profileName && (hasOverrides || !profile?.redisHost || profile.redisPort === undefined || profile.redisDb === undefined || !profile.redisPassword)) {
+        await setProfileRedisConfig(profileName, {
+            redisHost: connection.host,
+            redisPort: connection.port,
+            redisDb: connection.db,
+            redisPassword: connection.password
+        });
+        console.log(`已保存 Redis 连接配置到环境：${profileName}`);
     }
-    if (profileName) {
-        const profile = await getProfile(profileName);
-        if (profile?.redisPassword) {
-            return profile.redisPassword;
-        }
+    else if (!profileName && !options.redisPassword) {
+        console.log("Redis 连接配置仅本次使用，未关联 profile。");
     }
-    return promptAndSaveRedisPassword(profileName, "Redis 密码");
+    return connection;
+}
+async function chooseRedisServiceEndpoint(client) {
+    const services = await discoverRedisServices(client);
+    if (services.length === 0) {
+        return undefined;
+    }
+    const service = services.length === 1
+        ? services[0]
+        : await select({
+            message: "选择 Redis Service",
+            choices: services.map((item) => ({
+                name: formatRedisServiceChoice(item),
+                value: item
+            }))
+        });
+    const port = preferredRedisServicePort(service);
+    const host = redisServiceDnsName(service);
+    console.log(`已选择 Redis Service：${formatRedisServiceChoice(service)}`);
+    return { host, port };
+}
+async function discoverRedisServices(client) {
+    const namespaces = await client.listNamespaces();
+    const servicesByNamespace = await Promise.all(namespaces.map(async (namespace) => {
+        try {
+            return await client.listServices(namespace);
+        }
+        catch {
+            return [];
+        }
+    }));
+    return sortRedisServices(servicesByNamespace
+        .flat()
+        .filter((service) => service.name.toLowerCase().includes("redis")));
+}
+async function promptRedisHost() {
+    return input({
+        message: "Redis host",
+        default: DEFAULT_REDIS_SERVICE_HOST,
+        required: true
+    });
 }
 async function promptAndSaveRedisPassword(profileName, message) {
-    const redisPassword = await promptPassword({
-        message,
-        mask: "*"
-    });
-    if (!redisPassword) {
-        throw new Error("Redis 密码不能为空");
-    }
+    const redisPassword = await promptRedisPassword(message);
     if (profileName) {
         await setProfileRedisPassword(profileName, redisPassword);
         console.log(`已保存 Redis 密码到环境：${profileName}`);
     }
     else {
         console.log("Redis 密码仅本次使用，未关联 profile。");
+    }
+    return redisPassword;
+}
+async function promptRedisPassword(message) {
+    const redisPassword = await promptPassword({
+        message,
+        mask: "*"
+    });
+    if (!redisPassword) {
+        throw new Error("Redis 密码不能为空");
     }
     return redisPassword;
 }

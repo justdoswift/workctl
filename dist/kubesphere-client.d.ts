@@ -1,4 +1,4 @@
-import type { ClientOptions, DownloadLogOptions, ExecOptions, ExecResult, KubeTarget, LoginConfig, PodSummary, StreamExecOptions } from "./types.js";
+import type { ClientOptions, DownloadLogOptions, ExecOptions, ExecResult, KubeServiceSummary, KubeTarget, LoginConfig, PodSummary, StreamExecOptions } from "./types.js";
 interface KubeObjectMeta {
     name?: string;
     namespace?: string;
@@ -19,6 +19,7 @@ export declare class KubeSphereClient {
     listNamespaces(): Promise<string[]>;
     listTargets(namespace: string): Promise<KubeTarget[]>;
     resolveTarget(namespace: string, targetName: string): Promise<KubeTarget>;
+    listServices(namespace: string): Promise<KubeServiceSummary[]>;
     listPods(namespace: string, selector: Record<string, string>): Promise<PodSummary[]>;
     listPodsForTarget(target: KubeTarget): Promise<PodSummary[]>;
     downloadLog(options: DownloadLogOptions): Promise<void>;

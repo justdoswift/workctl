@@ -10,14 +10,18 @@ import {
   describeRedisConnection,
   describeRedisOperation,
   formatRedisTargetChoice,
+  formatRedisServiceChoice,
   isRedisAuthFailureOutput,
   isDangerousRedisCommand,
   parseRedisCommand,
+  preferredRedisServicePort,
   redactRedisPassword,
+  redisServiceDnsName,
   redisServiceHost,
+  sortRedisServices,
   sortRedisTargets
 } from "../src/redis.js";
-import type { KubeTarget } from "../src/types.js";
+import type { KubeServiceSummary, KubeTarget } from "../src/types.js";
 
 describe("redis", () => {
   const target = (namespace: string, name: string, ready = 1, desired = 1): KubeTarget => ({
@@ -27,6 +31,12 @@ describe("redis", () => {
     selector: { app: name },
     readyReplicas: ready,
     desiredReplicas: desired
+  });
+  const service = (namespace: string, name: string, ports = [6379], clusterIP = "10.233.0.1"): KubeServiceSummary => ({
+    namespace,
+    name,
+    ports,
+    clusterIP
   });
 
   it("sorts redis workload candidates with kubesphere-system/redis first", () => {
@@ -59,6 +69,30 @@ describe("redis", () => {
     expect(defaultRedisHostForTarget(redis)).toBe(DEFAULT_REDIS_HOST);
     expect(defaultRedisHostForTarget(target("tax-digital", "tax-api-proxy-server"))).toBeUndefined();
     expect(redisServiceHost("kubesphere-system")).toBe("redis.kubesphere-system.svc.cluster.local");
+  });
+
+  it("sorts redis services with tax-component/redis first", () => {
+    const sorted = sortRedisServices([
+      service("kubesphere-system", "redis"),
+      service("tax-component", "stock-pool-redis"),
+      service("tax-component", "redis-nodeport", [30379]),
+      service("tax-component", "redis")
+    ]);
+
+    expect(sorted.map((item) => `${item.namespace}/${item.name}`)).toEqual([
+      "tax-component/redis",
+      "tax-component/redis-nodeport",
+      "tax-component/stock-pool-redis",
+      "kubesphere-system/redis"
+    ]);
+  });
+
+  it("formats redis service choices", () => {
+    const redis = service("tax-component", "redis", [26379, 6379], "10.233.27.215");
+
+    expect(preferredRedisServicePort(redis)).toBe(6379);
+    expect(redisServiceDnsName(redis)).toBe("redis.tax-component");
+    expect(formatRedisServiceChoice(redis)).toBe("tax-component / redis  redis.tax-component:6379  10.233.27.215");
   });
 
   it("builds redis-cli args for built-in operations", () => {

@@ -88,6 +88,9 @@ export async function upsertProfile(input, filePath = defaultProfilesPath()) {
         url: normalizeBaseUrl(input.url),
         username: input.username.trim(),
         password: input.password,
+        redisHost: existing?.redisHost,
+        redisPort: existing?.redisPort,
+        redisDb: existing?.redisDb,
         redisPassword: existing?.redisPassword,
         insecure: Boolean(input.insecure),
         createdAt: existing?.createdAt ?? now,
@@ -105,18 +108,32 @@ export async function upsertProfile(input, filePath = defaultProfilesPath()) {
     await writeProfiles(config, filePath);
     return profile;
 }
-export async function setProfileRedisPassword(name, redisPassword, filePath = defaultProfilesPath()) {
-    if (!redisPassword) {
-        throw new Error("Redis 密码不能为空");
-    }
+export async function setProfileRedisConfig(name, input, filePath = defaultProfilesPath()) {
     const config = await readProfiles(filePath);
     const profile = config.profiles.find((item) => item.name === name);
     if (!profile) {
         throw new Error(`profile 不存在：${name}`);
     }
-    profile.redisPassword = redisPassword;
+    if (input.redisHost !== undefined) {
+        profile.redisHost = input.redisHost.trim() || undefined;
+    }
+    if (input.redisPort !== undefined) {
+        profile.redisPort = input.redisPort;
+    }
+    if (input.redisDb !== undefined) {
+        profile.redisDb = input.redisDb;
+    }
+    if (input.redisPassword !== undefined) {
+        if (!input.redisPassword) {
+            throw new Error("Redis 密码不能为空");
+        }
+        profile.redisPassword = input.redisPassword;
+    }
     profile.updatedAt = new Date().toISOString();
     await writeProfiles(config, filePath);
+}
+export async function setProfileRedisPassword(name, redisPassword, filePath = defaultProfilesPath()) {
+    await setProfileRedisConfig(name, { redisPassword }, filePath);
 }
 export async function removeProfile(name, filePath = defaultProfilesPath()) {
     const config = await readProfiles(filePath);

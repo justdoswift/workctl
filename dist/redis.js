@@ -3,6 +3,8 @@ export const REDIS_CLI_MISSING_MARKER = "__WORKCTL_REDIS_CLI_MISSING__";
 export const DEFAULT_REDIS_NAMESPACE = "kubesphere-system";
 export const DEFAULT_REDIS_WORKLOAD = "redis";
 export const DEFAULT_REDIS_HOST = "127.0.0.1";
+export const DEFAULT_BUSINESS_REDIS_NAMESPACE = "tax-component";
+export const DEFAULT_BUSINESS_REDIS_SERVICE = "redis";
 const DANGEROUS_REDIS_COMMANDS = new Set([
     "APPEND",
     "BITOP",
@@ -136,6 +138,44 @@ export function defaultRedisHostForTarget(target) {
 }
 export function redisServiceHost(namespace, workload = DEFAULT_REDIS_WORKLOAD) {
     return `${workload}.${namespace}.svc.cluster.local`;
+}
+export function redisServiceDnsName(service) {
+    return `${service.name}.${service.namespace}`;
+}
+export function preferredRedisServicePort(service) {
+    return service.ports.includes(6379) ? 6379 : service.ports[0];
+}
+export function redisServicePriority(service) {
+    const namespace = service.namespace.toLowerCase();
+    const name = service.name.toLowerCase();
+    if (namespace === DEFAULT_BUSINESS_REDIS_NAMESPACE && name === DEFAULT_BUSINESS_REDIS_SERVICE) {
+        return 0;
+    }
+    if (namespace === DEFAULT_BUSINESS_REDIS_NAMESPACE && name.includes("redis")) {
+        return 1;
+    }
+    if (name === DEFAULT_BUSINESS_REDIS_SERVICE) {
+        return 2;
+    }
+    return 3;
+}
+export function sortRedisServices(services) {
+    return [...services].sort((left, right) => {
+        const priorityDiff = redisServicePriority(left) - redisServicePriority(right);
+        if (priorityDiff !== 0) {
+            return priorityDiff;
+        }
+        const namespaceDiff = left.namespace.localeCompare(right.namespace);
+        if (namespaceDiff !== 0) {
+            return namespaceDiff;
+        }
+        return left.name.localeCompare(right.name);
+    });
+}
+export function formatRedisServiceChoice(service) {
+    const port = preferredRedisServicePort(service);
+    const portText = port ? `:${port}` : "";
+    return `${service.namespace} / ${service.name}  ${redisServiceDnsName(service)}${portText}  ${service.clusterIP ?? "-"}`;
 }
 export function buildRedisArgs(connection, operation) {
     const baseArgs = ["--raw"];

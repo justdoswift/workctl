@@ -93,6 +93,29 @@ export class KubeSphereClient {
         }
         return target;
     }
+    async listServices(namespace) {
+        const data = await this.fetchJson(`/api/v1/namespaces/${encodeURIComponent(namespace)}/services?limit=1000`);
+        return (data.items ?? [])
+            .map((service) => {
+            const name = service.metadata?.name;
+            if (!name) {
+                return undefined;
+            }
+            const summary = {
+                name,
+                namespace,
+                ports: (service.spec?.ports ?? [])
+                    .map((port) => port.port)
+                    .filter((port) => typeof port === "number")
+            };
+            if (service.spec?.clusterIP) {
+                summary.clusterIP = service.spec.clusterIP;
+            }
+            return summary;
+        })
+            .filter((service) => Boolean(service))
+            .sort((left, right) => left.name.localeCompare(right.name));
+    }
     async listPods(namespace, selector) {
         const selectorText = selectorToString(selector);
         const encodedSelector = encodeURIComponent(selectorText);

@@ -11,6 +11,7 @@ import type {
   DownloadLogOptions,
   ExecOptions,
   ExecResult,
+  KubeServiceSummary,
   KubeTarget,
   LoginConfig,
   PodSummary,
@@ -80,6 +81,16 @@ interface KubePod {
       name?: string;
       ready?: boolean;
       restartCount?: number;
+    }>;
+  };
+}
+
+interface KubeService {
+  metadata?: KubeObjectMeta;
+  spec?: {
+    clusterIP?: string;
+    ports?: Array<{
+      port?: number;
     }>;
   };
 }
@@ -212,6 +223,35 @@ export class KubeSphereClient {
     }
 
     return target;
+  }
+
+  async listServices(namespace: string): Promise<KubeServiceSummary[]> {
+    const data = await this.fetchJson<KubeList<KubeService>>(
+      `/api/v1/namespaces/${encodeURIComponent(namespace)}/services?limit=1000`
+    );
+
+    return (data.items ?? [])
+      .map((service): KubeServiceSummary | undefined => {
+        const name = service.metadata?.name;
+        if (!name) {
+          return undefined;
+        }
+
+        const summary: KubeServiceSummary = {
+          name,
+          namespace,
+          ports: (service.spec?.ports ?? [])
+            .map((port) => port.port)
+            .filter((port): port is number => typeof port === "number")
+        };
+        if (service.spec?.clusterIP) {
+          summary.clusterIP = service.spec.clusterIP;
+        }
+
+        return summary;
+      })
+      .filter((service): service is KubeServiceSummary => Boolean(service))
+      .sort((left, right) => left.name.localeCompare(right.name));
   }
 
   async listPods(namespace: string, selector: Record<string, string>): Promise<PodSummary[]> {

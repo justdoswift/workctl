@@ -20,6 +20,13 @@ export interface KubeTarget {
   availableReplicas?: number;
 }
 
+export interface KubeServiceSummary {
+  name: string;
+  namespace: string;
+  clusterIP?: string;
+  ports: number[];
+}
+
 export interface PodSummary {
   name: string;
   namespace: string;
@@ -73,6 +80,9 @@ export interface SavedProfile {
   url: string;
   username: string;
   password: string;
+  redisHost?: string;
+  redisPort?: number;
+  redisDb?: number;
   redisPassword?: string;
   insecure: boolean;
   createdAt: string;

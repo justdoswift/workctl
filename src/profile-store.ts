@@ -115,6 +115,9 @@ export async function upsertProfile(
     url: normalizeBaseUrl(input.url),
     username: input.username.trim(),
     password: input.password,
+    redisHost: existing?.redisHost,
+    redisPort: existing?.redisPort,
+    redisDb: existing?.redisDb,
     redisPassword: existing?.redisPassword,
     insecure: Boolean(input.insecure),
     createdAt: existing?.createdAt ?? now,
@@ -135,24 +138,48 @@ export async function upsertProfile(
   return profile;
 }
 
-export async function setProfileRedisPassword(
+export async function setProfileRedisConfig(
   name: string,
-  redisPassword: string,
+  input: {
+    redisHost?: string;
+    redisPort?: number;
+    redisDb?: number;
+    redisPassword?: string;
+  },
   filePath = defaultProfilesPath()
 ): Promise<void> {
-  if (!redisPassword) {
-    throw new Error("Redis 密码不能为空");
-  }
-
   const config = await readProfiles(filePath);
   const profile = config.profiles.find((item) => item.name === name);
   if (!profile) {
     throw new Error(`profile 不存在：${name}`);
   }
 
-  profile.redisPassword = redisPassword;
+  if (input.redisHost !== undefined) {
+    profile.redisHost = input.redisHost.trim() || undefined;
+  }
+  if (input.redisPort !== undefined) {
+    profile.redisPort = input.redisPort;
+  }
+  if (input.redisDb !== undefined) {
+    profile.redisDb = input.redisDb;
+  }
+  if (input.redisPassword !== undefined) {
+    if (!input.redisPassword) {
+      throw new Error("Redis 密码不能为空");
+    }
+    profile.redisPassword = input.redisPassword;
+  }
+
   profile.updatedAt = new Date().toISOString();
   await writeProfiles(config, filePath);
+}
+
+export async function setProfileRedisPassword(
+  name: string,
+  redisPassword: string,
+  filePath = defaultProfilesPath()
+): Promise<void> {
+  await setProfileRedisConfig(name, { redisPassword }, filePath);
 }
 
 export async function removeProfile(name: string, filePath = defaultProfilesPath()): Promise<boolean> {
