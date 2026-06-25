@@ -34,6 +34,7 @@ import {
   readProfiles,
   removeProfile,
   setDefaultProfile,
+  setProfileRedisPassword,
   upsertProfile
 } from "./profile-store.js";
 import {
@@ -76,7 +77,9 @@ import {
   redactRedisPassword,
   redisServiceHost,
   sortRedisTargets,
-  type RedisAction
+  type RedisAction,
+  type RedisConnection,
+  type RedisOperation
 } from "./redis.js";
 
 interface ConnectionOptions {
@@ -306,7 +309,7 @@ function addRedisOptions(command: Command): void {
     .option("--redis-host <host>", "Redis host")
     .option("--redis-port <number>", "Redis port", parsePositiveInteger)
     .option("--redis-db <number>", "Redis db", parseNonNegativeInteger)
-    .option("--redis-password <password>", "Redis 密码（只在本次命令中使用）")
+    .option("--redis-password <password>", "Redis 密码；使用已保存环境时会写入 profile")
     .addOption(new Option("--redis-action <action>", "Redis 操作").choices(["ping", "info", "get", "scan", "custom"]))
     .option("--key <key>", "GET 使用的 key")
     .option("--pattern <pattern>", "SCAN 使用的 key pattern")
@@ -418,18 +421,19 @@ async function runLeqiFlow(options: LeqiOptions): Promise<void> {
 }
 
 async function runRedisFlow(options: RedisOptions): Promise<void> {
-  const { client, connection } = await loginFromOptions(options);
+  const { client, connection, profileName } = await loginFromOptions(options);
   console.log(`已登录：${connection.username} @ ${connection.baseUrl}`);
 
   const { namespace, target, pod, container, autoDiscovered } = await chooseRedisKubeTarget(client, options);
   if (autoDiscovered) {
     console.log(`已自动选择 Redis 工作负载：${formatRedisTargetChoice(target)}`);
   }
-  const redisConnection = {
+  const redisPassword = await resolveRedisPassword(options, profileName);
+  const redisConnection: RedisConnection = {
     host: options.redisHost,
     port: options.redisPort,
     db: options.redisDb,
-    password: options.redisPassword
+    password: redisPassword
   };
   const action = await chooseRedisAction(options.redisAction);
   const operation = await promptRedisOperation({
@@ -454,14 +458,44 @@ async function runRedisFlow(options: RedisOptions): Promise<void> {
   console.log(`Redis：${describeRedisConnection(redisConnection)}`);
   console.log(`命令：${describeRedisOperation(operation)}`);
 
-  const result = await client.execCommand({
+  const result = await executeRedisCommand(client, namespace, pod.name, container, redisConnection, operation);
+  const output = parseRedisExecResult(result, redisConnection, target, namespace, container);
+
+  if (output.error.trim()) {
+    throw new Error(`Redis 命令执行失败：${output.error.trim()}`);
+  }
+
+  if (output.stderr.trim()) {
+    console.error(output.stderr.trim());
+  }
+
+  console.log(output.stdout.trim() || "(无响应内容)");
+}
+
+async function executeRedisCommand(
+  client: KubeSphereClient,
+  namespace: string,
+  pod: string,
+  container: string,
+  redisConnection: RedisConnection,
+  operation: RedisOperation
+) {
+  return client.execCommand({
     namespace,
-    pod: pod.name,
+    pod,
     container,
     command: buildRedisCliCommand(redisConnection, operation),
     timeoutMs: 120000
   });
+}
 
+function parseRedisExecResult(
+  result: { stdout: string; stderr: string; error: string },
+  redisConnection: RedisConnection,
+  target: KubeTarget,
+  namespace: string,
+  container: string
+): { stdout: string; stderr: string; error: string } {
   const stdout = redactRedisPassword(result.stdout, redisConnection.password);
   const stderr = redactRedisPassword(result.stderr, redisConnection.password);
   const error = redactRedisPassword(result.error, redisConnection.password);
@@ -480,15 +514,41 @@ async function runRedisFlow(options: RedisOptions): Promise<void> {
     );
   }
 
-  if (error.trim()) {
-    throw new Error(`Redis 命令执行失败：${error.trim()}`);
+  return { stdout, stderr, error };
+}
+
+async function resolveRedisPassword(options: RedisOptions, profileName?: string): Promise<string> {
+  if (options.redisPassword) {
+    if (profileName) {
+      await setProfileRedisPassword(profileName, options.redisPassword);
+      console.log(`已保存 Redis 密码到环境：${profileName}`);
+    }
+    return options.redisPassword;
   }
 
-  if (stderr.trim()) {
-    console.error(stderr.trim());
+  if (profileName) {
+    const profile = await getProfile(profileName);
+    if (profile?.redisPassword) {
+      return profile.redisPassword;
+    }
   }
 
-  console.log(stdout.trim() || "(无响应内容)");
+  const redisPassword = await promptPassword({
+    message: "Redis 密码",
+    mask: "*"
+  });
+  if (!redisPassword) {
+    throw new Error("Redis 密码不能为空");
+  }
+
+  if (profileName) {
+    await setProfileRedisPassword(profileName, redisPassword);
+    console.log(`已保存 Redis 密码到环境：${profileName}`);
+  } else {
+    console.log("Redis 密码仅本次使用，未关联 profile。");
+  }
+
+  return redisPassword;
 }
 
 async function chooseRedisKubeTarget(
@@ -806,8 +866,9 @@ async function runHistoryDownload(
 async function loginFromOptions(options: ConnectionOptions): Promise<{
   client: KubeSphereClient;
   connection: ConnectionAnswers;
+  profileName?: string;
 }> {
-  const { connection, newProfileName } = await resolveConnection(options);
+  const { connection, newProfileName, profileName } = await resolveConnection(options);
   const client = new KubeSphereClient({
     baseUrl: connection.baseUrl,
     insecure: connection.insecure
@@ -826,12 +887,13 @@ async function loginFromOptions(options: ConnectionOptions): Promise<{
     console.log(`已保存环境：${saved.name}`);
   }
 
-  return { client, connection };
+  return { client, connection, profileName: newProfileName ?? profileName };
 }
 
 async function resolveConnection(options: ConnectionOptions): Promise<{
   connection: ConnectionAnswers;
   newProfileName?: string;
+  profileName?: string;
 }> {
   const config = await readProfiles();
 
@@ -846,7 +908,8 @@ async function resolveConnection(options: ConnectionOptions): Promise<{
         username: options.username ?? profile.username,
         password: options.password ?? profile.password,
         insecure: options.insecure ?? profile.insecure
-      })
+      }),
+      profileName: profile.name
     };
   }
 
@@ -869,7 +932,8 @@ async function resolveConnection(options: ConnectionOptions): Promise<{
         username: choice.profile.username,
         password: choice.profile.password,
         insecure: options.insecure ?? choice.profile.insecure
-      })
+      }),
+      profileName: choice.profile.name
     };
   }
 

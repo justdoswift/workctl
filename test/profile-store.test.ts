@@ -10,6 +10,7 @@ import {
   readProfiles,
   removeProfile,
   setDefaultProfile,
+  setProfileRedisPassword,
   upsertProfile
 } from "../src/profile-store.js";
 
@@ -62,6 +63,21 @@ describe("profile store", () => {
     expect(await removeProfile("生产", filePath)).toBe(true);
     config = await readProfiles(filePath);
     expect(config.defaultProfile).toBe("开发");
+  });
+
+  it("saves redis passwords on profiles and preserves them during profile updates", async () => {
+    await upsertProfile({ name: "开发", url: "http://dev", username: "u", password: "p" }, filePath);
+    await setProfileRedisPassword("开发", "redis-secret", filePath);
+    await upsertProfile({ name: "开发", url: "http://dev-new", username: "u2", password: "p2" }, filePath);
+
+    const config = await readProfiles(filePath);
+    expect(config.profiles[0]).toMatchObject({
+      name: "开发",
+      url: "http://dev-new",
+      username: "u2",
+      password: "p2",
+      redisPassword: "redis-secret"
+    });
   });
 
   it("migrates legacy profiles when the new file is missing", async () => {

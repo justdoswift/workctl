@@ -12,6 +12,7 @@ export declare function upsertProfile(input: {
     insecure?: boolean;
     setDefault?: boolean;
 }, filePath?: string): Promise<SavedProfile>;
+export declare function setProfileRedisPassword(name: string, redisPassword: string, filePath?: string): Promise<void>;
 export declare function removeProfile(name: string, filePath?: string): Promise<boolean>;
 export declare function setDefaultProfile(name: string, filePath?: string): Promise<void>;
 export declare function getProfile(name: string, filePath?: string): Promise<SavedProfile | undefined>;

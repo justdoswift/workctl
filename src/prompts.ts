@@ -402,15 +402,18 @@ export async function promptRedisConnection(options: {
   const redisPassword =
     options.password ??
     (await password({
-      message: "Redis 密码（可空）",
+      message: "Redis 密码",
       mask: "*"
     }));
+  if (!redisPassword) {
+    throw new Error("Redis 密码不能为空");
+  }
 
   return {
     host: host.trim(),
     port,
     db,
-    password: redisPassword || undefined
+    password: redisPassword
   };
 }
 

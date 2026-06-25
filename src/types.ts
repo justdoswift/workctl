@@ -73,6 +73,7 @@ export interface SavedProfile {
   url: string;
   username: string;
   password: string;
+  redisPassword?: string;
   insecure: boolean;
   createdAt: string;
   updatedAt: string;

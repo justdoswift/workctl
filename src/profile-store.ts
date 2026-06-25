@@ -115,6 +115,7 @@ export async function upsertProfile(
     url: normalizeBaseUrl(input.url),
     username: input.username.trim(),
     password: input.password,
+    redisPassword: existing?.redisPassword,
     insecure: Boolean(input.insecure),
     createdAt: existing?.createdAt ?? now,
     updatedAt: now
@@ -132,6 +133,26 @@ export async function upsertProfile(
 
   await writeProfiles(config, filePath);
   return profile;
+}
+
+export async function setProfileRedisPassword(
+  name: string,
+  redisPassword: string,
+  filePath = defaultProfilesPath()
+): Promise<void> {
+  if (!redisPassword) {
+    throw new Error("Redis 密码不能为空");
+  }
+
+  const config = await readProfiles(filePath);
+  const profile = config.profiles.find((item) => item.name === name);
+  if (!profile) {
+    throw new Error(`profile 不存在：${name}`);
+  }
+
+  profile.redisPassword = redisPassword;
+  profile.updatedAt = new Date().toISOString();
+  await writeProfiles(config, filePath);
 }
 
 export async function removeProfile(name: string, filePath = defaultProfilesPath()): Promise<boolean> {
