@@ -28,7 +28,12 @@ import {
   type LexiangCatalogInfo,
   parseLexiangBusinessPayloadJson
 } from "./lexiang.js";
-import { DEFAULT_MYSQL_PORT, isValidDatabaseName, type MySqlConnection } from "./mysql-backup.js";
+import {
+  buildDefaultMySqlDestDatabase,
+  DEFAULT_MYSQL_PORT,
+  isValidDatabaseName,
+  type MySqlConnection
+} from "./mysql-backup.js";
 import { buildLogFileName, defaultOutputDir, formatBytes, normalizeBaseUrl } from "./utils.js";
 
 const NEW_PROFILE_VALUE = "__new__";
@@ -337,7 +342,7 @@ export async function promptMySqlBackupDatabases(options: {
       required: true,
       validate: validateDatabaseName
     }));
-  const destDefault = source === "lxzsdb_bak" ? "lxzsdb_bak2" : `${source}_copy`;
+  const destDefault = buildDefaultMySqlDestDatabase(source);
   const dest =
     options.dest ??
     (await input({

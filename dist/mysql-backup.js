@@ -23,6 +23,19 @@ export function escapeIdentifier(value) {
 export function escapeSqlString(value) {
     return `'${value.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 }
+export function buildDefaultMySqlDestDatabase(source, now = new Date()) {
+    return `${source.trim()}_${formatMySqlBackupTimestamp(now)}`;
+}
+function formatMySqlBackupTimestamp(date) {
+    const pad = (value) => String(value).padStart(2, "0");
+    return [
+        date.getFullYear(),
+        pad(date.getMonth() + 1),
+        pad(date.getDate()),
+        pad(date.getHours()),
+        pad(date.getMinutes())
+    ].join("");
+}
 export function buildMySqlEnv(connection, baseEnv = process.env) {
     const pathValue = [
         ...HOMEBREW_MYSQL_CLIENT_BINS,

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildCreateDatabaseSql,
+  buildDefaultMySqlDestDatabase,
   buildHomebrewInstallMysqlClientCommand,
   buildMySqlClientEnv,
   buildMySqlEnv,
@@ -28,6 +29,12 @@ describe("mysql backup", () => {
     expect(isValidDatabaseName("bad name")).toBe(false);
     expect(escapeIdentifier("lxzsdb_bak2")).toBe("`lxzsdb_bak2`");
     expect(escapeSqlString("a'b\\c")).toBe("'a\\'b\\\\c'");
+  });
+
+  it("builds timestamped default destination database names", () => {
+    expect(buildDefaultMySqlDestDatabase("lxzsdb_bak", new Date(2026, 5, 26, 9, 48))).toBe(
+      "lxzsdb_bak_202606260948"
+    );
   });
 
   it("builds mysql commands without leaking passwords in args", () => {

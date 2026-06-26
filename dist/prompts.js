@@ -5,7 +5,7 @@ import { addDays, assertDateString, buildDateRange, buildDateSelection, formatLo
 import { formatRedisTargetChoice } from "./redis.js";
 import { formatLeqiApiChoice, parseReqDtoJson } from "./leqi.js";
 import { DEFAULT_LEXIANG_VERSION, formatLexiangInterfaceChoice, parseLexiangBusinessPayloadJson } from "./lexiang.js";
-import { DEFAULT_MYSQL_PORT, isValidDatabaseName } from "./mysql-backup.js";
+import { buildDefaultMySqlDestDatabase, DEFAULT_MYSQL_PORT, isValidDatabaseName } from "./mysql-backup.js";
 import { buildLogFileName, defaultOutputDir, formatBytes, normalizeBaseUrl } from "./utils.js";
 const NEW_PROFILE_VALUE = "__new__";
 export const DEFAULT_NAMESPACE = "tax-digital";
@@ -214,7 +214,7 @@ export async function promptMySqlBackupDatabases(options) {
             required: true,
             validate: validateDatabaseName
         }));
-    const destDefault = source === "lxzsdb_bak" ? "lxzsdb_bak2" : `${source}_copy`;
+    const destDefault = buildDefaultMySqlDestDatabase(source);
     const dest = options.dest ??
         (await input({
             message: "dest 数据库",

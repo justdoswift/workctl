@@ -64,6 +64,21 @@ export function escapeSqlString(value: string): string {
   return `'${value.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 }
 
+export function buildDefaultMySqlDestDatabase(source: string, now = new Date()): string {
+  return `${source.trim()}_${formatMySqlBackupTimestamp(now)}`;
+}
+
+function formatMySqlBackupTimestamp(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+    pad(date.getHours()),
+    pad(date.getMinutes())
+  ].join("");
+}
+
 export function buildMySqlEnv(connection: MySqlConnection, baseEnv: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
   const pathValue = [
     ...HOMEBREW_MYSQL_CLIENT_BINS,

@@ -32,6 +32,7 @@ export declare function isValidDatabaseName(value: string): boolean;
 export declare function assertDatabaseName(value: string, label?: string): void;
 export declare function escapeIdentifier(value: string): string;
 export declare function escapeSqlString(value: string): string;
+export declare function buildDefaultMySqlDestDatabase(source: string, now?: Date): string;
 export declare function buildMySqlEnv(connection: MySqlConnection, baseEnv?: NodeJS.ProcessEnv): NodeJS.ProcessEnv;
 export declare function buildMySqlClientEnv(baseEnv?: NodeJS.ProcessEnv): NodeJS.ProcessEnv;
 export declare function buildMysqlCommand(connection: Omit<MySqlConnection, "password">, options?: {
