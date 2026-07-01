@@ -1,6 +1,6 @@
 import os from "node:os";
 import path from "node:path";
-import { checkbox, confirm, editor, input, number, password, select } from "@inquirer/prompts";
+import { checkbox, confirm, editor, input, number, password, search, select } from "@inquirer/prompts";
 import { addDays, assertDateString, buildDateRange, buildDateSelection, formatLocalDate } from "./date-utils.js";
 import { formatRedisTargetChoice } from "./redis.js";
 import { formatLeqiApiChoice, parseReqDtoJson } from "./leqi.js";
@@ -371,14 +371,20 @@ export async function chooseTarget(targets, provided) {
         }
         return target;
     }
-    return select({
+    return search({
         message: "选择工作负载",
         pageSize: 15,
-        choices: targets.map((target) => ({
-            name: formatTargetChoice(target),
-            value: target
-        }))
+        source: (term) => filterTargetChoices(targets, term)
     });
+}
+export function filterTargetChoices(targets, term) {
+    const keyword = term?.trim().toLowerCase();
+    return targets
+        .filter((target) => !keyword || target.name.toLowerCase().includes(keyword))
+        .map((target) => ({
+        name: formatTargetChoice(target),
+        value: target
+    }));
 }
 export async function chooseRedisTargetCandidate(targets) {
     return select({
@@ -443,14 +449,20 @@ export async function chooseJarCandidate(candidates, provided) {
     if (candidates.length === 1) {
         return candidates[0].path;
     }
-    return select({
+    return search({
         message: "选择应用 jar",
         pageSize: 12,
-        choices: candidates.map((candidate) => ({
-            name: `${candidate.path}  ${candidate.source === "process" ? "Java 进程" : "扫描发现"}`,
-            value: candidate.path
-        }))
+        source: (term) => filterJarCandidateChoices(candidates, term)
     });
+}
+export function filterJarCandidateChoices(candidates, term) {
+    const keyword = term?.trim().toLowerCase();
+    return candidates
+        .filter((candidate) => !keyword || candidate.path.toLowerCase().includes(keyword))
+        .map((candidate) => ({
+        name: `${candidate.path}  ${candidate.source === "process" ? "Java 进程" : "扫描发现"}`,
+        value: candidate.path
+    }));
 }
 export async function chooseLogRange(options) {
     if (options.tailLines) {

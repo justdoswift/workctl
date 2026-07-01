@@ -69,11 +69,19 @@ export declare function promptLexiangBusinessPayload(options: {
 export declare function chooseLexiangNextAction(): Promise<LexiangNextAction>;
 export declare function chooseNamespace(namespaces: string[], provided?: string): Promise<string>;
 export declare function chooseTarget(targets: KubeTarget[], provided?: string): Promise<KubeTarget>;
+export declare function filterTargetChoices(targets: KubeTarget[], term?: string): Array<{
+    name: string;
+    value: KubeTarget;
+}>;
 export declare function chooseRedisTargetCandidate(targets: KubeTarget[]): Promise<KubeTarget>;
 export declare function formatTargetChoice(target: KubeTarget): string;
 export declare function choosePod(pods: PodSummary[], provided?: string): Promise<PodSummary>;
 export declare function chooseContainer(containers: string[], provided?: string): Promise<string>;
 export declare function chooseJarCandidate(candidates: JarCandidate[], provided?: string): Promise<string>;
+export declare function filterJarCandidateChoices(candidates: JarCandidate[], term?: string): Array<{
+    name: string;
+    value: string;
+}>;
 export declare function chooseLogRange(options: {
     tailLines?: number;
     sinceMinutes?: number;
